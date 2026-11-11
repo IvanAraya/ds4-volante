@@ -14,13 +14,20 @@ from evdev import InputDevice, UInput, AbsInfo, ecodes as e, list_devices
 LADO = e.ABS_X
 VERTICAL = e.ABS_Y
 GATILLOS_DIGITALES = {e.BTN_TL2, e.BTN_TR2}
+BOTON_CAPTURA = e.BTN_SOUTH  # Cruz (X): captura un paso durante la calibración
 
 VALORES_INICIALES = {
     "invertir": True,
     "angulo_max": 90.0,
     "zona_muerta": 0.0,
     "suavizado": 0.4,
+    "centro": 0.0,  # ángulo crudo (grados) que corresponde a la posición neutral
 }
+
+
+def normalizar(ang):
+    """Lleva un ángulo en grados al intervalo [-180, 180)."""
+    return (ang + 180.0) % 360.0 - 180.0
 
 def carpeta_usuario():
     usuario = os.environ.get("SUDO_USER")
@@ -84,6 +91,8 @@ class Volante:
         self.cfg = cfg
         self.valor = 0
         self.estado = "Detenido"
+        self.acc = (0, 1)  # última lectura cruda del acelerómetro (lado, vertical)
+        self.pulsaciones = 0  # veces que se ha pulsado BOTON_CAPTURA
         self._parar = threading.Event()
         self._hilo = None
 
@@ -139,12 +148,17 @@ class Volante:
                         if dev is principal:
                             if ev.type == e.EV_KEY and ev.code in GATILLOS_DIGITALES:
                                 continue
+                            if (ev.type == e.EV_KEY and ev.code == BOTON_CAPTURA
+                                    and ev.value == 1):
+                                self.pulsaciones += 1
                             ui.write_event(ev)
                         elif ev.type == e.EV_ABS and ev.code in acc:
                             acc[ev.code] = ev.value
                         elif ev.type == e.EV_SYN:
                             cfg = self.cfg
+                            self.acc = (acc[LADO], acc[VERTICAL])
                             ang = math.degrees(math.atan2(acc[LADO], acc[VERTICAL]))
+                            ang = normalizar(ang - cfg["centro"])
                             if cfg["invertir"]:
                                 ang = -ang
                             if abs(ang) < cfg["zona_muerta"]:
@@ -230,6 +244,133 @@ def main():
                             command=volante.detener)
     btn_detener.pack(side="left", padx=4)
 
+    # --- Calibración -------------------------------------------------------
+    marco_cal = tk.LabelFrame(marco, text="Calibración", padx=6, pady=6)
+    marco_cal.pack(fill="x", pady=(10, 0))
+
+    lbl_cal = tk.Label(marco_cal, justify="left", anchor="w", wraplength=300)
+    lbl_cal.pack(fill="x")
+    botones_cal = tk.Frame(marco_cal)
+    botones_cal.pack(pady=(6, 0))
+
+    PASOS = [
+        ("centro", "Paso 1/3: sostén el control en posición neutral (recto)."),
+        ("izquierda", "Paso 2/3: gira el control a la izquierda hasta el tope "
+                      "que quieres usar."),
+        ("derecha", "Paso 3/3: gira el control a la derecha hasta el tope "
+                    "que quieres usar."),
+    ]
+    MUESTRAS = 30  # lecturas promediadas por paso (~0,6 s)
+    cal = {"paso": None, "muestras": [], "capturas": {}, "pulsaciones": 0}
+
+    def texto_reposo():
+        return (f"Centro actual: {cfg['centro']:+.1f}°. "
+                "Pulsa «Calibrar» para ajustar el centro, el giro máximo "
+                "y la dirección.")
+
+    def angulo_actual_promedio(muestras):
+        # Promediar las componentes evita errores al cruzar ±180°.
+        lado = sum(m[0] for m in muestras) / len(muestras)
+        vertical = sum(m[1] for m in muestras) / len(muestras)
+        return math.degrees(math.atan2(lado, vertical))
+
+    def mostrar_paso():
+        _, texto = PASOS[cal["paso"]]
+        lbl_cal.config(text=texto + "\nPulsa «Capturar» o la Cruz (X) del control.")
+        btn_capturar.config(state=tk.NORMAL)
+
+    def iniciar_calibracion():
+        if not volante.activo():
+            lbl_cal.config(text="Primero inicia el volante para leer el sensor.")
+            return
+        cal.update(paso=0, muestras=[], capturas={},
+                   pulsaciones=volante.pulsaciones)
+        btn_calibrar.config(state=tk.DISABLED)
+        btn_cancelar.config(state=tk.NORMAL)
+        btn_restablecer.config(state=tk.DISABLED)
+        mostrar_paso()
+
+    def terminar_calibracion(mensaje):
+        cal.update(paso=None, muestras=[])
+        btn_capturar.config(state=tk.DISABLED)
+        btn_cancelar.config(state=tk.DISABLED)
+        btn_calibrar.config(state=tk.NORMAL)
+        btn_restablecer.config(state=tk.NORMAL)
+        lbl_cal.config(text=mensaje)
+
+    def capturar():
+        if cal["paso"] is None or cal["muestras"]:
+            return
+        btn_capturar.config(state=tk.DISABLED)
+        lbl_cal.config(text="Midiendo... no muevas el control.")
+        tomar_muestra()
+
+    def tomar_muestra():
+        if cal["paso"] is None:
+            return
+        if not volante.activo():
+            terminar_calibracion("Calibración cancelada: el volante se detuvo.")
+            return
+        cal["muestras"].append(volante.acc)
+        if len(cal["muestras"]) < MUESTRAS:
+            root.after(20, tomar_muestra)
+            return
+        nombre, _ = PASOS[cal["paso"]]
+        cal["capturas"][nombre] = angulo_actual_promedio(cal["muestras"])
+        cal["muestras"] = []
+        cal["paso"] += 1
+        if cal["paso"] < len(PASOS):
+            mostrar_paso()
+        else:
+            aplicar_calibracion()
+
+    def aplicar_calibracion():
+        c = cal["capturas"]
+        izq = normalizar(c["izquierda"] - c["centro"])
+        der = normalizar(c["derecha"] - c["centro"])
+        if abs(izq) < 5 or abs(der) < 5 or (izq > 0) == (der > 0):
+            terminar_calibracion(
+                "No se detectó un giro claro hacia ambos lados. "
+                "Inténtalo de nuevo girando más el control."
+            )
+            return
+        angulo = (abs(izq) + abs(der)) / 2
+        angulo = max(10.0, min(180.0, round(angulo / 5) * 5))
+        cfg["centro"] = round(c["centro"], 2)
+        # La izquierda debe producir valores negativos en el eje.
+        cfg["invertir"] = izq > 0
+        cfg["angulo_max"] = angulo
+        var_inv.set(cfg["invertir"])
+        var_ang.set(angulo)
+        guardar_config(cfg)
+        terminar_calibracion(
+            f"Calibración guardada. Centro: {cfg['centro']:+.1f}°, "
+            f"ángulo máximo: {angulo:.0f}°, "
+            f"giro {'invertido' if izq > 0 else 'normal'}."
+        )
+
+    def cancelar_calibracion():
+        terminar_calibracion("Calibración cancelada. " + texto_reposo())
+
+    def restablecer_calibracion():
+        cfg["centro"] = VALORES_INICIALES["centro"]
+        guardar_config(cfg)
+        lbl_cal.config(text="Centro restablecido. " + texto_reposo())
+
+    btn_calibrar = tk.Button(botones_cal, text="Calibrar", width=9,
+                             command=iniciar_calibracion)
+    btn_calibrar.pack(side="left", padx=2)
+    btn_capturar = tk.Button(botones_cal, text="Capturar", width=9,
+                             state=tk.DISABLED, command=capturar)
+    btn_capturar.pack(side="left", padx=2)
+    btn_cancelar = tk.Button(botones_cal, text="Cancelar", width=9,
+                             state=tk.DISABLED, command=cancelar_calibracion)
+    btn_cancelar.pack(side="left", padx=2)
+    btn_restablecer = tk.Button(botones_cal, text="Restablecer", width=9,
+                                command=restablecer_calibracion)
+    btn_restablecer.pack(side="left", padx=2)
+    lbl_cal.config(text=texto_reposo())
+
     def actualizar():
         cfg["invertir"] = var_inv.get()
         cfg["angulo_max"] = var_ang.get()
@@ -239,6 +380,12 @@ def main():
         lbl_estado.config(text=f"Estado: {volante.estado}")
         x = 150 + volante.valor / 32767 * 148
         canvas.coords(barra, min(150, x), 4, max(150, x), 20)
+
+        # Permite capturar con la Cruz (X) del control durante la calibración.
+        if volante.pulsaciones != cal["pulsaciones"]:
+            cal["pulsaciones"] = volante.pulsaciones
+            if cal["paso"] is not None and not cal["muestras"]:
+                capturar()
 
         activo = volante.activo()
         btn_iniciar.config(state=tk.DISABLED if activo else tk.NORMAL)
