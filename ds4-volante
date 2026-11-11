@@ -1,0 +1,4 @@
+#!/bin/sh
+export SUDO_ASKPASS="$HOME/Apps/ds4-volante/askpass-yad"
+exec sudo -A env DISPLAY="$DISPLAY" XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" \
+    sh -c 'modprobe uinput; exec python3 /home/ivan/Apps/ds4-volante/ds4-volante.py'
