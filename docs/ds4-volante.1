@@ -6,6 +6,7 @@ ds4-volante \- usa la inclinación de un DualShock 4 como volante
 .RB [ \-c
 .IR RUTA ]
 .RB [ \-\-no\-iniciar ]
+.RB [ \-\-diagnostico ]
 .RB [ \-V ]
 .RB [ \-h ]
 .SH DESCRIPCIÓN
@@ -33,6 +34,11 @@ como archivo de configuración.
 .B \-\-no\-iniciar
 Abre la ventana sin conectar el control automáticamente.
 .TP
+.B \-\-diagnostico
+Muestra si las reglas udev están instaladas, los permisos del control y de
+.IR /dev/uinput ,
+y cómo corregir cada problema; después termina.
+.TP
 .BR \-V ", " \-\-version
 Muestra la versión y termina.
 .TP
@@ -47,7 +53,9 @@ Configuración del usuario (por defecto en
 .I /etc/udev/rules.d/70-ds4-volante.rules
 Reglas udev que dan acceso a
 .I /dev/uinput
-y al control sin necesidad de root.
+y al control sin necesidad de root: al usuario con la sesión activa
+(systemd-logind o elogind) y a los miembros del grupo
+.BR input .
 .SH ENTORNO
 .TP
 .B XDG_CONFIG_HOME

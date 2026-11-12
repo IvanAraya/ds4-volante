@@ -17,7 +17,7 @@ MODULESLOADDIR ?= /etc/modules-load.d
 INSTALL      ?= install
 FUENTES      := $(wildcard src/ds4_volante/*.py)
 
-.PHONY: all run test install uninstall recargar-udev clean
+.PHONY: all run test install uninstall recargar-udev agregar-grupo revisar-grupo clean
 
 all:
 	@echo "Objetivos: run, test, install, uninstall, clean"
@@ -40,7 +40,9 @@ install:
 	$(INSTALL) -Dm 644 docs/$(APP).1 $(DESTDIR)$(MANDIR)/man1/$(APP).1
 	$(INSTALL) -Dm 644 data/70-$(APP).rules $(DESTDIR)$(UDEVRULESDIR)/70-$(APP).rules
 	$(INSTALL) -Dm 644 data/$(APP)-modules.conf $(DESTDIR)$(MODULESLOADDIR)/$(APP).conf
-	@if [ -z "$(DESTDIR)" ]; then $(MAKE) --no-print-directory recargar-udev; fi
+	@if [ -z "$(DESTDIR)" ]; then \
+		$(MAKE) --no-print-directory recargar-udev revisar-grupo; \
+	fi
 
 uninstall:
 	rm -f $(DESTDIR)$(LIBDIR)/ds4_volante/*.py
@@ -59,6 +61,26 @@ recargar-udev:
 	-udevadm control --reload-rules
 	-udevadm trigger --subsystem-match=misc --subsystem-match=input
 	@echo "Listo. Desconecta y vuelve a conectar el control."
+
+# Sin systemd-logind/elogind, el acceso se da mediante el grupo «input».
+revisar-grupo:
+	@usuario="$${SUDO_USER:-$$(id -un)}"; \
+	if [ ! -d /run/systemd/seats ] && ! id -nG "$$usuario" | grep -qw input; then \
+		echo; \
+		echo "AVISO: tu sistema no usa systemd-logind, así que el usuario «$$usuario»"; \
+		echo "debe pertenecer al grupo «input». Ejecuta:"; \
+		echo "    sudo make agregar-grupo"; \
+		echo "y después cierra sesión y vuelve a entrar."; \
+	fi
+
+# Agrega al usuario que ejecuta sudo al grupo «input».
+agregar-grupo:
+	@usuario="$${SUDO_USER:-$$(id -un)}"; \
+	if [ "$$usuario" = root ]; then \
+		echo "Ejecútalo desde tu usuario con: sudo make agregar-grupo"; exit 1; \
+	fi; \
+	usermod -aG input "$$usuario" && \
+	echo "Usuario «$$usuario» agregado al grupo «input». Cierra sesión y vuelve a entrar."
 
 clean:
 	rm -rf build dist src/ds4_volante.egg-info .pytest_cache

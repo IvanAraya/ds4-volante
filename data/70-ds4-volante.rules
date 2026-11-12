@@ -1,14 +1,22 @@
 # Reglas udev de ds4-volante.
 #
-# Dan acceso al usuario con sesión activa (etiqueta "uaccess" de systemd-logind)
-# a los dispositivos que necesita la aplicación, para no ejecutarla como root.
+# Dan acceso a los dispositivos que necesita la aplicación, para no ejecutarla
+# como root, de dos formas:
+#   - TAG+="uaccess": el usuario con la sesión activa recibe acceso automático
+#     (sistemas con systemd-logind o elogind);
+#   - GROUP="input", MODE="0660": los miembros del grupo «input» reciben acceso
+#     (cualquier sistema, también sin systemd). Requiere
+#     «sudo usermod -aG input USUARIO» y volver a iniciar sesión.
 # El nombre empieza por 70- porque "uaccess" debe aplicarse antes de
 # 73-seat-late.rules.
 
 # Dispositivo para crear el eje virtual.
-KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
 
 # DualShock 4 (CUH-ZCT1 = 05c4, CUH-ZCT2 = 09cc) y adaptador inalámbrico (0ba0),
 # por USB o Bluetooth. Incluye el dispositivo de sensores de movimiento, que no
 # recibe "uaccess" por defecto.
-SUBSYSTEM=="input", KERNEL=="event*", ATTRS{id/vendor}=="054c", ATTRS{id/product}=="05c4|09cc|0ba0", TAG+="uaccess"
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{id/vendor}=="054c", ATTRS{id/product}=="05c4|09cc|0ba0", TAG+="uaccess", GROUP="input", MODE="0660"
+
+# Dispositivo virtual creado por la aplicación, para que los juegos puedan leerlo.
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="DS4 Volante", TAG+="uaccess", GROUP="input", MODE="0660"

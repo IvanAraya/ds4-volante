@@ -34,7 +34,8 @@ class Ventana:
     # --- Construcción -----------------------------------------------------
     def _crear_ajustes(self, marco):
         cfg = self.cfg
-        self.lbl_estado = tk.Label(marco, text="", anchor="w", width=48)
+        self.lbl_estado = tk.Label(marco, text="", anchor="w", justify="left",
+                                   wraplength=ANCHO)
         self.lbl_estado.pack(fill="x")
 
         self.canvas = tk.Canvas(marco, width=ANCHO, height=24, bg="white",

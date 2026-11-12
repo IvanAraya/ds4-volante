@@ -1,11 +1,12 @@
 """Lectura del DualShock 4 y publicación del eje virtual mediante uinput."""
+import glob
 import select
 import threading
 
-from evdev import AbsInfo, InputDevice, UInput, ecodes as e, list_devices
+from evdev import AbsInfo, InputDevice, UInput, ecodes as e
 from evdev.uinput import UInputError
 
-from . import calculo
+from . import calculo, diagnostico
 
 # Ejes del acelerómetro (según lo observado con evtest)
 LADO = e.ABS_X
@@ -14,20 +15,23 @@ GATILLOS_DIGITALES = {e.BTN_TL2, e.BTN_TR2}
 BOTON_CAPTURA = e.BTN_SOUTH  # Cruz (X): captura un paso durante la calibración
 NOMBRE_VIRTUAL = "DS4 Volante"
 
-AYUDA_PERMISOS = (
-    "Instala las reglas udev (ver README) y vuelve a conectar el control."
-)
+
+
+def mensaje_permisos(prefijo):
+    problemas = diagnostico.problemas_de_acceso()
+    if not problemas:
+        problemas = ["Revisa los permisos (ejecuta «ds4-volante --diagnostico»)."]
+    return prefijo + " " + " ".join(problemas)
 
 
 def buscar_dispositivos():
     """Devuelve (principal, sensores) del primer DualShock 4 encontrado."""
+    # No se usa evdev.list_devices() porque omite en silencio los dispositivos
+    # sin permiso, y así no se podría explicar el problema.
     devs = []
-    sin_acceso = False
-    for ruta in list_devices():
+    for ruta in sorted(glob.glob("/dev/input/event*")):
         try:
             devs.append(InputDevice(ruta))
-        except PermissionError:
-            sin_acceso = True
         except OSError:
             pass
     motion = next(
@@ -49,10 +53,10 @@ def buscar_dispositivos():
         for d in (principal, motion):
             if d:
                 d.close()
-        mensaje = "No se encontró el control. Conéctalo por USB o Bluetooth."
-        if sin_acceso:
-            mensaje += " Algunos dispositivos no son accesibles: " + AYUDA_PERMISOS
-        raise RuntimeError(mensaje)
+        if diagnostico.controles_conectados():
+            raise RuntimeError(mensaje_permisos(
+                "El control está conectado, pero no hay permiso para usarlo."))
+        raise RuntimeError("No se encontró el control. Conéctalo por USB o Bluetooth.")
     return principal, motion
 
 
@@ -140,7 +144,7 @@ class Volante:
         except RuntimeError as exc:
             self.estado = str(exc)
         except (PermissionError, UInputError):
-            self.estado = "Sin permiso para usar el control o /dev/uinput. " + AYUDA_PERMISOS
+            self.estado = mensaje_permisos("Sin permiso para usar el control o /dev/uinput.")
         except OSError as exc:
             self.estado = f"Control desconectado o sin acceso ({exc.strerror or exc})"
         except Exception as exc:  # p. ej., error al crear el dispositivo virtual
