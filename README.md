@@ -71,9 +71,31 @@ Los empaquetadores pueden usar `PREFIX`, `DESTDIR`, `UDEVRULESDIR` y
 
 ### Permisos (sin `sudo`)
 
-La aplicación se ejecuta como usuario normal. Las reglas udev dan acceso a
-`/dev/uinput` y a los dispositivos del DualShock 4 al usuario con la sesión
-activa (etiqueta `uaccess`). No es necesario ejecutarla como root.
+La aplicación se ejecuta como usuario normal; no es necesario ejecutarla como
+root. Las reglas udev dan acceso a `/dev/uinput` y a los dispositivos del
+DualShock 4 de dos formas:
+
+- **Con systemd-logind o elogind** (la mayoría de las distribuciones): el
+  usuario con la sesión activa recibe acceso automáticamente.
+- **Sin systemd** (por ejemplo, MX Linux, antiX o Devuan): tu usuario debe
+  pertenecer al grupo `input`. `make install` te avisa si es tu caso. Ejecuta
+  lo siguiente y luego cierra sesión y vuelve a entrar:
+
+```bash
+sudo make agregar-grupo
+```
+
+Ten en cuenta que el grupo `input` permite leer todos los dispositivos de
+entrada (incluido el teclado), así que agrega solo a usuarios de confianza.
+
+### Si no detecta el control
+
+```bash
+ds4-volante --diagnostico
+```
+
+Muestra si las reglas están instaladas, los permisos de cada dispositivo del
+control y de `/dev/uinput`, y qué hacer para corregir cada problema.
 
 ## Uso
 
@@ -82,7 +104,8 @@ ds4-volante
 ```
 
 Opciones: `--config RUTA` (otro archivo de configuración), `--no-iniciar`
-(abre la ventana sin conectar el control), `--version` y `--help`.
+(abre la ventana sin conectar el control), `--diagnostico` (revisa permisos y
+conexión), `--version` y `--help`.
 
 En la ventana puedes ajustar el ángulo máximo, la zona muerta, el suavizado y
 la inversión del giro.
@@ -120,6 +143,7 @@ versión 0.1 (`~/.config/ds4-volante.json`), se lee automáticamente.
 │   ├── __main__.py     # línea de comandos
 │   ├── calculo.py      # ángulo, eje y calibración (sin hardware)
 │   ├── config.py       # configuración XDG
+│   ├── diagnostico.py  # detección de problemas de permisos
 │   ├── interfaz.py     # ventana Tkinter
 │   └── volante.py      # lectura evdev y dispositivo uinput
 ├── scripts/            # desinstalador de la versión 0.1

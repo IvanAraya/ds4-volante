@@ -5,7 +5,17 @@ y el proyecto usa [versionado semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Corregido
+- En sistemas sin systemd-logind (sin `uaccess`), el control no se podía usar:
+  las reglas udev ahora también asignan el grupo `input`, y `make install`
+  avisa si el usuario debe agregarse con `sudo make agregar-grupo`.
+- Cuando faltan permisos, el mensaje decía solo «No se encontró el control»
+  (`evdev.list_devices()` omite los dispositivos sin permiso). Ahora indica
+  qué falta y cómo corregirlo.
+- La línea de estado cortaba los mensajes largos; ahora se ajustan.
+
 ### Añadido
+- Opción `--diagnostico`, que revisa reglas, permisos y conexión del control.
 - `scripts/desinstalar-v0.1.sh`: elimina la instalación manual de la versión
   0.1 y copia su configuración a la ubicación nueva.
 
