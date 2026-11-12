@@ -1,0 +1,60 @@
+.TH DS4-VOLANTE 1 "2026-11-12" "ds4-volante 0.2.0" "Manual del usuario"
+.SH NOMBRE
+ds4-volante \- usa la inclinación de un DualShock 4 como volante
+.SH SINOPSIS
+.B ds4-volante
+.RB [ \-c
+.IR RUTA ]
+.RB [ \-\-no\-iniciar ]
+.RB [ \-V ]
+.RB [ \-h ]
+.SH DESCRIPCIÓN
+.B ds4-volante
+lee el acelerómetro de un control DualShock 4 y publica la inclinación lateral
+como el eje
+.B ABS_WHEEL
+de un dispositivo virtual llamado
+.IR "DS4 Volante" .
+Los demás botones y ejes del control se reenvían al dispositivo virtual, y el
+control original queda capturado mientras la aplicación está activa.
+.PP
+La ventana permite ajustar el ángulo máximo, la zona muerta, el suavizado y la
+inversión del giro, y calibrar el centro, el giro máximo y la dirección en tres
+pasos (neutral, izquierda y derecha). Cada paso se captura con el botón
+.B Capturar
+o con la Cruz (X) del control.
+.SH OPCIONES
+.TP
+.BR \-c ", " \-\-config " \fIRUTA\fR"
+Usa
+.I RUTA
+como archivo de configuración.
+.TP
+.B \-\-no\-iniciar
+Abre la ventana sin conectar el control automáticamente.
+.TP
+.BR \-V ", " \-\-version
+Muestra la versión y termina.
+.TP
+.BR \-h ", " \-\-help
+Muestra la ayuda y termina.
+.SH ARCHIVOS
+.TP
+.I $XDG_CONFIG_HOME/ds4-volante/config.json
+Configuración del usuario (por defecto en
+.IR ~/.config ).
+.TP
+.I /etc/udev/rules.d/70-ds4-volante.rules
+Reglas udev que dan acceso a
+.I /dev/uinput
+y al control sin necesidad de root.
+.SH ENTORNO
+.TP
+.B XDG_CONFIG_HOME
+Carpeta base de la configuración.
+.SH ESTADO DE SALIDA
+0 si termina correctamente; distinto de 0 si falta una dependencia o no se
+puede abrir la ventana.
+.SH VÉASE TAMBIÉN
+.BR udev (7),
+.BR evtest (1)
