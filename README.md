@@ -46,6 +46,25 @@ en el menú como **DS4 Volante** y también puede ejecutarse con `ds4-volante`.
 
 Para desinstalar: `sudo make uninstall`.
 
+### Actualizar desde la versión 0.1
+
+La versión 0.1 se instalaba a mano en `~/Apps/ds4-volante` y usaba `sudo`.
+Para quitarla, ejecuta como tu usuario (sin `sudo`) desde la carpeta del
+proyecto:
+
+```bash
+./scripts/desinstalar-v0.1.sh
+```
+
+El script muestra lo que va a eliminar y pide confirmación. Solo borra los
+archivos de esa versión (`ds4-volante.py`, `ds4-volante`, `askpass-yad`) y los
+lanzadores, enlaces o scripts de tu usuario que apunten a esa carpeta. Copia la
+calibración a la ubicación nueva y conserva la original. Si la carpeta antigua
+es un clon de git, no borra nada dentro.
+
+Opciones: `--simular` (muestra los cambios sin hacerlos), `--dir RUTA` (si la
+instalaste en otra carpeta) y `--si` (no pide confirmación).
+
 Los empaquetadores pueden usar `PREFIX`, `DESTDIR`, `UDEVRULESDIR` y
 `MODULESLOADDIR`, por ejemplo:
 `make install PREFIX=/usr DESTDIR=pkg UDEVRULESDIR=/usr/lib/udev/rules.d`.
@@ -103,6 +122,7 @@ versión 0.1 (`~/.config/ds4-volante.json`), se lee automáticamente.
 │   ├── config.py       # configuración XDG
 │   ├── interfaz.py     # ventana Tkinter
 │   └── volante.py      # lectura evdev y dispositivo uinput
+├── scripts/            # desinstalador de la versión 0.1
 ├── data/               # reglas udev, lanzador .desktop, icono, modules-load
 ├── docs/ds4-volante.1  # página de manual
 ├── tests/              # pruebas con pytest
