@@ -1,6 +1,0 @@
-#!/bin/sh
-yad --title="Autenticación requerida" \
-    --text="sudo:" \
-    --entry --hide-text \
-    --image=dialog-password \
-    --center --width=340

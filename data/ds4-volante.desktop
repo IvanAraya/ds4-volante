@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=DS4 Volante
+GenericName=Volante virtual
+Comment=Usa la inclinación del DualShock 4 como volante
+Exec=ds4-volante
+Icon=ds4-volante
+Terminal=false
+Categories=Game;Utility;
+Keywords=dualshock;ps4;gamepad;volante;steering;wheel;acelerómetro;
+StartupWMClass=Ds4-volante
