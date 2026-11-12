@@ -3,6 +3,12 @@
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [versionado semántico](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Añadido
+- `scripts/desinstalar-v0.1.sh`: elimina la instalación manual de la versión
+  0.1 y copia su configuración a la ubicación nueva.
+
 ## [0.2.0] - 2026-11-12
 
 ### Añadido
